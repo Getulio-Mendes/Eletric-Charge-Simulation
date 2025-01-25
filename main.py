@@ -1,6 +1,6 @@
 import pygame
 from numpy import array
-from electrostatics import PointCharge, LineCharge, ElectricField, Potential, init
+from electrostatics import PointCharge, LineCharge, ElectricField, Potential, init, GaussianCircle, FieldLine
 
 # Constants
 SCREEN_WIDTH = 800
@@ -25,14 +25,12 @@ def main():
     charges = [
         PointCharge(-50, 0, 1e-6),  # Positive point charge
         PointCharge(50, 0, -1e-6),  # Negative point charge
-        LineCharge(1e-6, [-200, -100], [200, 100]),  # Positive line charge
-        LineCharge(-1e-6, [-200, 100], [200, -100])  # Negative line charge
     ]
 
     # Create electric field and potential objects
     field = ElectricField(charges)
     potential = Potential(charges)
-
+    
     dragging_charge = None  # To store the charge that is being dragged
     dragging_line_point = None  # To store which point of the line is being dragged (start or end)
     offset_x, offset_y = 0, 0  # Offsets for dragging
@@ -184,13 +182,28 @@ def main():
         # Clear the screen
         screen.fill(WHITE)
 
+        # Plot electric field
+        #field.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+        
+        potential.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)        
+        
+        fieldlines = []
+        for charge in charges:
+            if isinstance(charge, PointCharge):
+                g = GaussianCircle([charge.x, charge.y], 0.1)
+                for x in g.fluxpoints(field, 12):
+                    fieldlines.append(FieldLine(field.line(x)))
+        fieldlines.append(FieldLine(field.line([10, 0])))        
+        
+        # Plot field lines
+        for fieldline in fieldlines:
+            fieldline.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+        
         # Draw charges
         for charge in charges:
             charge.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)
 
-        # Plot electric field
-        field.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)
-
+            
         # Draw the sidebar if visible (drawn last to cover everything behind it)
         if sidebar_visible:
             pygame.draw.rect(screen, SIDEBAR_COLOR, sidebar_rect)  # Barra lateral

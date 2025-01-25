@@ -11,7 +11,7 @@ from numpy.linalg import det
 from scipy.integrate import ode
 from scipy.interpolate import splrep, splev
 import pygame
-import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 from arrow import draw_arrow
 
@@ -95,21 +95,32 @@ class PointCharge:
         self.y = y
         self.q = q
 
+    
     def E(self, x, y):  # pylint: disable=invalid-name
         """Electric field vector at point (x, y)."""
         if self.q == 0:
             return 0, 0
+
+        # Convert inputs to numpy arrays if they aren't already
+        x = numpy.array(x)
+        y = numpy.array(y)
+
         dx = x - self.x
         dy = y - self.y
         r_squared = dx**2 + dy**2
-        if r_squared == 0:
-            return 0, 0  # Avoid division by zero
-        r = sqrt(r_squared)
+
+        # Handle division by zero for points exactly at the charge location
+        r_squared = numpy.where(r_squared == 0, numpy.inf, r_squared)
+
+        r = numpy.sqrt(r_squared)
         field_magnitude = self.q / r_squared
+
+        # Calculate field components
         Ex = field_magnitude * (dx / r)
         Ey = field_magnitude * (dy / r)
-        return Ex, Ey
 
+        return Ex, Ey    
+    
     def V(self, x, y):  # pylint: disable=invalid-name
         """Potential at point (x, y)."""
         r = sqrt((x - self.x)**2 + (y - self.y)**2)
@@ -243,6 +254,59 @@ class ElectricField:
         Ex, Ey = self.vector(x, y)
         return sqrt(Ex**2 + Ey**2)
     
+    def projection(self, x, a):
+        """Returns the projection of the field onto the surface normal."""
+        # Ensure x is a 2D array
+        x = numpy.array(x)
+        if x.ndim == 1:
+            x = x[numpy.newaxis, :]
+
+        # Calculate the electric field at each point
+        Ex, Ey = self.vector(x[:, 0], x[:, 1])
+
+        # Calculate the projection
+        return Ex * numpy.cos(a) + Ey * numpy.sin(a)   
+
+    
+    def line(self, x0, max_steps=300, step_size=5):
+        """
+        Calculates the trajectory of a field line starting from point x0.
+    
+        Args:
+            x0 (array-like): The starting point of the field line.
+            max_steps (int): Maximum number of steps to trace the field line.
+            step_size (float): Step size for tracing the field line.
+    
+        Returns:
+            list: A list of points representing the field line.
+        """
+        x0 = numpy.array(x0)  # Ensure x0 is a numpy array
+        points = [x0]  # Initialize the list of points with the starting point
+
+        for _ in range(max_steps):
+            # Calculate the electric field vector at the current point
+            Ex, Ey = self.vector(x0[0], x0[1])
+
+            # Normalize the field vector to get the direction
+            field_magnitude = numpy.sqrt(Ex**2 + Ey**2)
+            if field_magnitude == 0:
+                break  # Stop if the field is zero
+
+            dx = Ex / field_magnitude
+            dy = Ey / field_magnitude
+
+            # Calculate the next point
+            x0 = x0 + step_size * numpy.array([dx, dy])
+
+            # Stop if the point goes out of bounds
+            if not (XMIN <= x0[0] <= XMAX and YMIN <= x0[1] <= YMAX):
+                break
+
+            # Add the new point to the list
+            points.append(x0)
+
+        return points    
+    
     def plot(self, screen, screen_width, screen_height, spacing=40, scale=20):
         """Plots the electric field vectors as arrows, scaled by magnitude."""
        
@@ -273,6 +337,34 @@ class ElectricField:
                     end=end_pos,
                     color=(0, 0, 255),  # Blue color for the arrows
                     )         
+
+
+def get_color(value, zmin=None, zmax=None, colormap=cm.viridis):
+    """
+    Maps a value to a color using a Matplotlib colormap.
+
+    Args:
+        value (float): The value to map to a color.
+        zmin (float): The minimum value of the range (optional).
+        zmax (float): The maximum value of the range (optional).
+        colormap: A Matplotlib colormap (default is 'viridis').
+
+    Returns:
+        tuple: An RGB color tuple.
+    """
+    if zmin is not None and zmax is not None:
+        # Normalize the value to the range [0, 1]
+        normalized = (value - zmin) / (zmax - zmin)
+        normalized = max(0, min(1, normalized))  # Clamp to [0, 1]
+    else:
+        # Use the value directly (no normalization)
+        normalized = value
+
+    # Get the color from the colormap
+    rgba = colormap(normalized)  # Returns an RGBA tuple (values in [0, 1])
+    rgb = (int(rgba[0] * 255), int(rgba[1] * 255), int(rgba[2] * 255))  # Convert to Pygame RGB format
+    return rgb
+
 class Potential:
     """The potential owing to a collection of charges."""
 
@@ -282,25 +374,49 @@ class Potential:
 
     def magnitude(self, x, y):
         """Returns the magnitude of the potential at point (x, y)."""
+        
         return sum(charge.V(x, y) for charge in self.charges)
     
     
-    def plot(self, screen, screen_width, screen_height, zmin=-1.5, zmax=1.5, step=0.25, linewidth=1):
-        """Plots the field magnitude using pygame."""
-        x, y = meshgrid(
-            linspace(XMIN / ZOOM + XOFFSET, XMAX / ZOOM + XOFFSET, 200),
-            linspace(YMIN / ZOOM, YMAX / ZOOM, 200))
-        z = zeros_like(x)
-        for i in range(x.shape[0]):
-            for j in range(x.shape[1]):
-                z[i, j] = self.magnitude([x[i, j], y[i, j]])
+       
+    def plot(self, screen, screen_width, screen_height, resolution=200):
+        """
+        Plots the potential as a heatmap using pygame and a Matplotlib colormap.
+        """
+        # Create a grid of points
+        x, y = numpy.meshgrid(
+            numpy.linspace(XMIN / ZOOM + XOFFSET, XMAX / ZOOM + XOFFSET, resolution),
+            numpy.linspace(YMIN / ZOOM, YMAX / ZOOM, resolution)
+        )
+        z = numpy.zeros_like(x)
 
+        # Calculate the potential at each point
         for i in range(x.shape[0]):
             for j in range(x.shape[1]):
-                if zmin <= z[i, j] <= zmax:
-                    pos = to_screen_coordinates(x[i, j], y[i, j], screen_width, screen_height)
-                    pygame.draw.circle(screen, (0, 0, 0), pos, linewidth)   
-   
+                z[i, j] = self.magnitude(x[i, j], y[i, j])
+
+        # Apply logarithmic scaling to the potential values
+        z_scaled = numpy.log10(numpy.abs(z) * 5e8 + 1e-10)  # Add a small offset to avoid log(0)
+        z_scaled = numpy.nan_to_num(z_scaled, nan=0.0, posinf=0.0, neginf=0.0)  # Handle invalid values
+
+        # Create a surface for the heatmap
+        heatmap_surface = pygame.Surface((resolution, resolution))
+
+        # Draw the heatmap on the surface (flip the y-axis)
+        for i in range(x.shape[0]):
+            for j in range(x.shape[1]):
+                # Get the color for the current potential value (no normalization)
+                color = get_color(z_scaled[i, j], zmin=None, zmax=None, colormap=cm.viridis)  # Use the 'viridis' colormap
+
+                # Set the pixel color on the heatmap surface (flip the y-axis)
+                heatmap_surface.set_at((j, resolution - 1 - i), color)  # Flip the y-axis
+
+        # Scale the heatmap surface to fit the screen
+        heatmap_surface = pygame.transform.scale(heatmap_surface, (screen_width, screen_height))
+
+        # Blit the heatmap surface onto the screen
+        screen.blit(heatmap_surface, (0, 0))       
+        
 class GaussianCircle:
     """A Gaussian circle with radius r."""
 
