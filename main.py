@@ -9,7 +9,7 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 BUTTON_COLOR = (0, 128, 255)  # Button color (blue)
 BUTTON_TEXT_COLOR = (255, 255, 255)  # Button text color (white)
-SIDEBAR_COLOR = (200, 200, 200)  # Sidebar color (gray)
+SIDEBAR_COLOR = (100, 100, 100)  # Sidebar color (gray)
 
 def main():
     pygame.init()
@@ -37,24 +37,29 @@ def main():
     dragging_line_point = None  # To store which point of the line is being dragged (start or end)
     offset_x, offset_y = 0, 0  # Offsets for dragging
 
-    # Button properties
-    button_font = pygame.font.Font(None, 24)
-    button_text_positive = button_font.render("+ Carga", True, BUTTON_TEXT_COLOR)
-    button_text_negative = button_font.render("- Carga", True, BUTTON_TEXT_COLOR)
-    button_text_remove = button_font.render("Remover", True, BUTTON_TEXT_COLOR)
-    button_rect_positive = pygame.Rect(20, 50, 80, 30)  # Botão para carga positiva
-    button_rect_negative = pygame.Rect(20, 100, 80, 30)  # Botão para carga negativa
-    button_rect_remove = pygame.Rect(20, 150, 80, 30)  # Botão para remover carga
-
     # Sidebar properties
-    sidebar_width = 150  # Largura da barra lateral reduzida
+    sidebar_width = 250  # Largura da barra lateral reduzida
     sidebar_visible = False  # Estado da barra lateral (inicialmente escondida)
     sidebar_rect = pygame.Rect(0, 0, sidebar_width, SCREEN_HEIGHT)  # Retângulo da barra lateral
-
+    
+    # Button properties
+    button_font = pygame.font.Font(None, 24)
+    button_text_positive = button_font.render("Carga pontual +", True, BUTTON_TEXT_COLOR)
+    button_text_negative = button_font.render("Carga pontual -", True, BUTTON_TEXT_COLOR)
+    button_text_line_positive = button_font.render("Carga linha +", True, BUTTON_TEXT_COLOR)
+    button_text_line_negative = button_font.render("Carga linha -", True, BUTTON_TEXT_COLOR)
+    button_text_remove = button_font.render("Remover Cargas", True, BUTTON_TEXT_COLOR)
+    
+    button_rect_positive = pygame.Rect(10, 50, sidebar_width, 30)  # Botão para carga positiva
+    button_rect_negative = pygame.Rect(10, 100, sidebar_width, 30)  # Botão para carga negativa
+    button_rect_line_positive = pygame.Rect(10, 150, sidebar_width, 30)  # Botão para carga linha positiva
+    button_rect_line_negative = pygame.Rect(10, 200, sidebar_width, 30)  # Botão para carga linha negativa
+    button_rect_remove = pygame.Rect(10, 250, sidebar_width-10, 30)  # Botão para remover carga
+    
     # Menu icon properties
     menu_icon_font = pygame.font.Font(None, 36)
     menu_icon_text = menu_icon_font.render("=", True, BLACK)
-    menu_icon_rect = pygame.Rect(10, 10, 30, 30)  # Three-line icon in the top-left corner
+    menu_icon_rect = pygame.Rect(20, 20, 40, 40)  # Three-line icon in the top-left corner
     remove_mode = False  # Estado do modo de remoção
 
     while running:
@@ -68,6 +73,7 @@ def main():
                 # Check if the menu icon is clicked
                 if menu_icon_rect.collidepoint(mouse_x, mouse_y):
                     sidebar_visible = not sidebar_visible  # Alternar visibilidade da barra lateral
+                    remove_mode = False
 
                 # Check if the buttons are clicked (only if the sidebar is visible)
                 if sidebar_visible:
@@ -78,6 +84,14 @@ def main():
                     elif button_rect_negative.collidepoint(mouse_x, mouse_y):
                         # Add a negative charge at the center of the screen
                         charges.append(PointCharge(0, 0, -1e-6))  # Carga negativa no centro
+                        remove_mode = False  # Desativa o modo de remoção
+                    elif button_rect_line_positive.collidepoint(mouse_x, mouse_y):
+                        # Add a positive charge at the center of the screen
+                        charges.append(LineCharge(1e-6, [-200, -100], [200, 100]))  # Carga positiva no centro
+                        remove_mode = False  # Desativa o modo de remoção
+                    elif button_rect_line_negative.collidepoint(mouse_x, mouse_y):
+                        # Add a negative charge at the center of the screen
+                        charges.append(LineCharge(-1e-6, [-200, -100], [200, 100]))  # Carga negativa no centro
                         remove_mode = False  # Desativa o modo de remoção
                     elif button_rect_remove.collidepoint(mouse_x, mouse_y):
                         # Toggle remove mode
@@ -99,7 +113,20 @@ def main():
                                 # Remove the charge
                                 charges.remove(charge)
                                 break  # Exit the loop after removing the charge
+                        if isinstance(charge, LineCharge):
+                            start_x, start_y = charge.x1  # Use x1 for the start point
+                            end_x, end_y = charge.x2  # Use x2 for the end point
+                            # Check if the mouse is near the start or end point of the line
+                            if (start_x - 10 <= math_x <= start_x + 10 and 
+                                start_y - 10 <= math_y <= start_y+10):
+                                charges.remove(charge)
+                                break
+                            elif (end_x - 10 <= math_x <= end_x + 10 and
+                                  end_y - 10 <= math_y <= end_y + 10):
+                                charges.remove(charge)
+                                break                
                 else:
+                                
                     # If not in remove mode, check if a charge is clicked to drag it
                     for charge in charges:
                         if isinstance(charge, PointCharge):
@@ -157,14 +184,6 @@ def main():
         # Clear the screen
         screen.fill(WHITE)
 
-        # Draw the sidebar if visible
-        if sidebar_visible:
-            pygame.draw.rect(screen, SIDEBAR_COLOR, sidebar_rect)  # Sidebar
-            screen.blit(button_text, (button_rect.x, button_rect.y))  # Button inside the sidebar
-
-        # Draw the menu icon
-        screen.blit(menu_icon_text, (menu_icon_rect.x, menu_icon_rect.y))
-
         # Draw charges
         for charge in charges:
             charge.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -177,11 +196,13 @@ def main():
             pygame.draw.rect(screen, SIDEBAR_COLOR, sidebar_rect)  # Barra lateral
             screen.blit(button_text_positive, (button_rect_positive.x, button_rect_positive.y))  # Botão para carga positiva
             screen.blit(button_text_negative, (button_rect_negative.x, button_rect_negative.y))  # Botão para carga negativa
+            screen.blit(button_text_line_positive, (button_rect_line_positive.x, button_rect_line_positive.y))  # Botão para carga positiva
+            screen.blit(button_text_line_negative, (button_rect_line_negative.x, button_rect_line_negative.y))  # Botão para carga negativa
             screen.blit(button_text_remove, (button_rect_remove.x, button_rect_remove.y))  # Botão para remover carga
 
             # Highlight the remove button if in remove mode
             if remove_mode:
-                pygame.draw.rect(screen, (255, 0, 0), button_rect_remove, 3)  # Borda vermelha no botão de remover
+                pygame.draw.rect(screen, (255, 0, 0), button_rect_remove, 2)  # Borda vermelha no botão de remover
 
         # Draw the menu icon (drawn last to ensure it's always visible)
         screen.blit(menu_icon_text, (menu_icon_rect.x, menu_icon_rect.y))
