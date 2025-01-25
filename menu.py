@@ -21,6 +21,10 @@ def main():
     clock = pygame.time.Clock()
     running = True
 
+    # Carregar a imagem de fundo
+    background_image = pygame.image.load("fundo.png")
+    background_image = pygame.transform.scale(background_image, (SCREEN_WIDTH, SCREEN_HEIGHT))  # Redimensionar para o tamanho da tela
+
     # Fonts
     title_font = pygame.font.Font(None, 48)
     button_font = pygame.font.Font(None, 32)
@@ -142,6 +146,9 @@ def main():
 
         # Clear the screen
         screen.fill(WHITE)
+
+        # Desenhar a imagem de fundo
+        screen.blit(background_image, (0, 0))
 
         # Draw title
         screen.blit(title_text, (title_rect.x, title_rect.y - scroll_y))
