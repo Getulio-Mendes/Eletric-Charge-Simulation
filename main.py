@@ -1,5 +1,5 @@
 import pygame
-from electrostatics import Charge, ElectricField, to_screen_coordinates
+from electrostatics import PointCharge, LineCharge, ElectricField, Potential, init
 
 # Constants
 SCREEN_WIDTH = 800
@@ -10,34 +10,42 @@ BLACK = (0, 0, 0)
 def main():
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("Electric Field Simulation")
+    pygame.display.set_caption("Electric Field and Potential Simulation")
     clock = pygame.time.Clock()
     running = True
 
+    # Initialize the domain based on the screen size
+    init(SCREEN_WIDTH, SCREEN_HEIGHT, zoom=1, xoffset=0)
+
     # Define charges
     charges = [
-        Charge(-100, 0, 1e-6),
-        Charge(100, 0, -1e-6)
+        PointCharge(-50, 0, 1e-6),  # Positive point charge
+        PointCharge(50, 0, -1e-6),  # Negative point charge
+        LineCharge(1e-6, [-200, -100], [200, 100]),  # Positive line charge
+        LineCharge(-1e-6, [-200, 100], [200, -100])  # Negative line charge
     ]
 
-    field = ElectricField(screen, charges, SCREEN_WIDTH, SCREEN_HEIGHT)
+    # Create electric field and potential objects
+    field = ElectricField(charges)
+    potential = Potential(charges)
 
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
 
+        # Clear the screen
         screen.fill(WHITE)
 
         # Draw charges
         for charge in charges:
-            color = (0, 0, 255) if charge.q > 0 else (255, 0, 0)
-            pos = to_screen_coordinates(charge.x, charge.y, SCREEN_WIDTH, SCREEN_HEIGHT)
-            pygame.draw.circle(screen, color, pos, 10)
+            charge.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)
 
         # Plot electric field
-        field.plot()
+        field.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)
 
+        # Plot potential
+        # Update the display
         pygame.display.flip()
         clock.tick(60)
 
