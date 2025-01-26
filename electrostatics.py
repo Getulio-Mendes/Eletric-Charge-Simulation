@@ -268,7 +268,7 @@ class ElectricField:
         return Ex * numpy.cos(a) + Ey * numpy.sin(a)   
        
     
-    def plot(self, screen, screen_width, screen_height, spacing=40, scale=20):
+    def plot(self, screen, screen_width, screen_height, spacing=27, scale=15):
         """Plots the electric field vectors as arrows, scaled by magnitude."""
        
         for x in range(int(XMIN), int(XMAX), spacing):
