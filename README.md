@@ -40,7 +40,7 @@ Este projeto permite a simulação de campos elétricos gerados por cargas pontu
 4. Agora, você pode rodar o programa. Para iniciar o menu principal, execute o arquivo `menu.py`:
 
     ```bash
-    python menu.py
+    python src/menu.py
     ```
 
 ## Como Usar
