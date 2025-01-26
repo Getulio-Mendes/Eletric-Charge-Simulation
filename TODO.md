@@ -1,3 +1,0 @@
-- [ ] Flux arrow
-- [ ] Flux on line charge
-- [ ] Optimization
