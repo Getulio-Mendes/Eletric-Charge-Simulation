@@ -1,7 +1,6 @@
 import pygame
 from numpy import array
-from electrostatics import PointCharge, LineCharge, ElectricField, Potential, init, GaussianCircle, FieldLine
-
+from electrostatics import PointCharge, LineCharge, ElectricField, Potential, init 
 # Constants
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
@@ -89,11 +88,11 @@ def main(initial_charges=None):
                         remove_mode = False  # Desativa o modo de remoção
                     elif button_rect_line_positive.collidepoint(mouse_x, mouse_y):
                         # Add a positive line charge
-                        charges.append(LineCharge(1e-6, [-100, -50], [100, 50]))  # Positive line charge
+                        charges.append(LineCharge(1e-6, array([-100, -50]), array([100, 50])))  # Positive line charge
                         remove_mode = False  # Desativa o modo de remoção
                     elif button_rect_line_negative.collidepoint(mouse_x, mouse_y):
                         # Add a negative line charge
-                        charges.append(LineCharge(-1e-6, [-100, 50], [100, -50]))  # Negative line charge
+                        charges.append(LineCharge(-1e-6, array([-100, 50]), array([100, -50])))  # Negative line charge
                         remove_mode = False  # Desativa o modo de remoção
                     elif button_rect_remove.collidepoint(mouse_x, mouse_y):
                         # Toggle remove mode
@@ -190,18 +189,7 @@ def main(initial_charges=None):
         
         potential.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)        
         
-        fieldlines = []
-        for charge in charges:
-            if isinstance(charge, PointCharge):
-                g = GaussianCircle([charge.x, charge.y], 0.1)
-                for x in g.fluxpoints(field, 12):
-                    fieldlines.append(FieldLine(field.line(x)))
-        fieldlines.append(FieldLine(field.line([10, 0])))        
-        
-        # Plot field lines
-        for fieldline in fieldlines:
-            fieldline.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)
-        
+                
         # Draw charges
         for charge in charges:
             charge.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)

@@ -154,29 +154,29 @@ class LineCharge:
    
     def E(self, x, y):  # pylint: disable=invalid-name
         """Electric field vector at point (x, y)."""
-        x = array([x, y])  # Convert (x, y) to a numpy array
+        
+        # Convert (x, y) to a numpy array with shape (n, 2)
+        x_points = numpy.array([x, y]).T  # Transpose to get (n, 2) shape
         x1, x2, lam = self.x1, self.x2, self.lam
 
-        theta1, theta2 = angle(x, x1, x2), pi - angle(x, x2, x1)
-        a = point_line_distance(x, x1, x2)
-        r1, r2 = norm(x - x1), norm(x - x2)
-
-        sign = where(is_left(x, x1, x2), 1, -1)
+        theta1 = angle(x_points, x1, x2)
+        theta2 = pi - angle(x_points, x2, x1)
+        a = point_line_distance(x_points, x1, x2)
+        r1 = norm(x_points - x1)
+        r2 = norm(x_points - x2)
+        sign = where(is_left(x_points, x1, x2), 1, -1)
 
         Epara = lam * (1 / r2 - 1 / r1)
         Eperp = -sign * lam * (cos(theta2) - cos(theta1)) / where(a == 0, inf, a)
 
         dx = x2 - x1
+        dx_norm = norm(dx)
 
-        if len(x.shape) == 2:
-            Epara = Epara[::, newaxis]
-            Eperp = Eperp[::, newaxis]
+        # Calculate components
+        Ex = Eperp * (-dx[1] / dx_norm) + Epara * (dx[0] / dx_norm)
+        Ey = Eperp * (dx[0] / dx_norm) + Epara * (dx[1] / dx_norm)
 
-        # Calculate the electric field components
-        Ex = Eperp * (-dx[1] / norm(dx)) + Epara * (dx[0] / norm(dx))
-        Ey = Eperp * (dx[0] / norm(dx)) + Epara * (dx[1] / norm(dx))
-
-        return Ex, Ey    
+        return Ex, Ey   
     
     def is_close(self, x):
         """Returns True if x is close to the charge."""
@@ -266,46 +266,7 @@ class ElectricField:
 
         # Calculate the projection
         return Ex * numpy.cos(a) + Ey * numpy.sin(a)   
-
-    
-    def line(self, x0, max_steps=300, step_size=5):
-        """
-        Calculates the trajectory of a field line starting from point x0.
-    
-        Args:
-            x0 (array-like): The starting point of the field line.
-            max_steps (int): Maximum number of steps to trace the field line.
-            step_size (float): Step size for tracing the field line.
-    
-        Returns:
-            list: A list of points representing the field line.
-        """
-        x0 = numpy.array(x0)  # Ensure x0 is a numpy array
-        points = [x0]  # Initialize the list of points with the starting point
-
-        for _ in range(max_steps):
-            # Calculate the electric field vector at the current point
-            Ex, Ey = self.vector(x0[0], x0[1])
-
-            # Normalize the field vector to get the direction
-            field_magnitude = numpy.sqrt(Ex**2 + Ey**2)
-            if field_magnitude == 0:
-                break  # Stop if the field is zero
-
-            dx = Ex / field_magnitude
-            dy = Ey / field_magnitude
-
-            # Calculate the next point
-            x0 = x0 + step_size * numpy.array([dx, dy])
-
-            # Stop if the point goes out of bounds
-            if not (XMIN <= x0[0] <= XMAX and YMIN <= x0[1] <= YMAX):
-                break
-
-            # Add the new point to the list
-            points.append(x0)
-
-        return points    
+       
     
     def plot(self, screen, screen_width, screen_height, spacing=40, scale=20):
         """Plots the electric field vectors as arrows, scaled by magnitude."""
@@ -374,12 +335,9 @@ class Potential:
 
     def magnitude(self, x, y):
         """Returns the magnitude of the potential at point (x, y)."""
-        
         return sum(charge.V(x, y) for charge in self.charges)
-    
-    
        
-    def plot(self, screen, screen_width, screen_height, resolution=200):
+    def plot(self, screen, screen_width, screen_height, resolution=100):
         """
         Plots the potential as a heatmap using pygame and a Matplotlib colormap.
         """
@@ -406,44 +364,13 @@ class Potential:
         for i in range(x.shape[0]):
             for j in range(x.shape[1]):
                 # Get the color for the current potential value (no normalization)
-                color = get_color(z_scaled[i, j], zmin=None, zmax=None, colormap=cm.viridis)  # Use the 'viridis' colormap
+                color = get_color(z_scaled[i, j], zmin=None, zmax=None, colormap=cm.plasma) 
 
                 # Set the pixel color on the heatmap surface (flip the y-axis)
-                heatmap_surface.set_at((j, resolution - 1 - i), color)  # Flip the y-axis
+                heatmap_surface.set_at((j, resolution - 1 - i), color)  
 
         # Scale the heatmap surface to fit the screen
         heatmap_surface = pygame.transform.scale(heatmap_surface, (screen_width, screen_height))
 
         # Blit the heatmap surface onto the screen
         screen.blit(heatmap_surface, (0, 0))       
-        
-class GaussianCircle:
-    """A Gaussian circle with radius r."""
-
-    def __init__(self, x, r, a0=0):
-        """Initializes the Gaussian surface at position vector 'x' and given radius 'r'."""
-        self.x = x
-        self.r = r
-        self.a0 = a0
-
-    def fluxpoints(self, field, n, uniform=False):
-        """Returns points where field lines should enter/exit the surface."""
-        a = radians(linspace(0, 360, 1001)) + self.a0
-        assert len(a) % 4 == 1
-        x = self.r * array([cos(a), sin(a)]).T + self.x
-
-        if uniform:
-            flux = ones_like(a)
-        else:
-            flux = field.projection(x, a)
-            if numpy.sum(flux) < 0:
-                flux *= -1
-            assert numpy.all(flux > 0)  # Updated here: alltrue -> numpy.all
-
-        intflux = insert(cumsum((flux[:-1] + flux[1:]) / 2), 0, 0)
-        assert isclose(intflux[-1], numpy.sum(flux[:-1]))
-
-        v = linspace(0, intflux[-1], n + 1)
-        a = lininterp2(intflux, a, v)[:-1]
-
-        return self.r * array([cos(a), sin(a)]).T + self.x
