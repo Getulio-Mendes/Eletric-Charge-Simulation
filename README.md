@@ -62,9 +62,9 @@ Este projeto permite a simulação de campos elétricos gerados por cargas pontu
 - **Remover Cargas**: Ative o modo de remoção para apagar as cargas clicando nelas.
 - **Alternar entre Campo Elétrico e Potencial**: Altere o modo de visualização entre campo elétrico e potencial utilizando o botão no menu lateral.
 
-## Contato
-
 ## Colaboradores
 
 - Getúlio Santos Mendes
 - Leandro Sousa Costa
+- Felipe Parreiras Dias
+- Regiane Pereira
