@@ -50,12 +50,14 @@ def main(initial_charges=None):
     button_text_line_positive = button_font.render("Carga linha +", True, BUTTON_TEXT_COLOR)
     button_text_line_negative = button_font.render("Carga linha -", True, BUTTON_TEXT_COLOR)
     button_text_remove = button_font.render("Remover Cargas", True, BUTTON_TEXT_COLOR)
+    button_text_plot = button_font.render("Mostrar Potencial", True, BUTTON_TEXT_COLOR)
 
     button_rect_positive = pygame.Rect(10, 50, sidebar_width - 20, 30)  # Positive point charge button
     button_rect_negative = pygame.Rect(10, 100, sidebar_width - 20, 30)  # Negative point charge button
     button_rect_line_positive = pygame.Rect(10, 150, sidebar_width - 20, 30)  # Positive line charge button
     button_rect_line_negative = pygame.Rect(10, 200, sidebar_width - 20, 30)  # Negative line charge button
     button_rect_remove = pygame.Rect(10, 250, sidebar_width - 20, 30)  # Remove charges button
+    button_rect_plot = pygame.Rect(10, 300, sidebar_width - 20, 30)
 
     # Menu icon properties
     menu_icon_font = pygame.font.Font(None, 36)
@@ -63,6 +65,7 @@ def main(initial_charges=None):
     menu_icon_rect = pygame.Rect(10, 10, 40, 40)  # Menu icon in the top-left corner
 
     remove_mode = False  # Estado do modo de remoção
+    plot_mode = True # True = potencial com linhas de campo, False = apenas campo elétrico
 
     while running:
         for event in pygame.event.get():
@@ -98,6 +101,15 @@ def main(initial_charges=None):
                     elif button_rect_remove.collidepoint(mouse_x, mouse_y):
                         # Toggle remove mode
                         remove_mode = not remove_mode  # Alternar o modo de remoção
+                    elif button_rect_plot.collidepoint(mouse_x, mouse_y):
+                        # Alternar modo de plotagem
+                        plot_mode = not plot_mode
+                        # Atualizar texto do botão
+                        button_text_plot = button_font.render(
+                            "Mostrar Campo" if plot_mode else "Mostrar Potencial", 
+                            True, 
+                            BUTTON_TEXT_COLOR
+                        )
 
                 # Convert Pygame coordinates to mathematical coordinates
                 math_x = mouse_x - SCREEN_WIDTH // 2
@@ -185,22 +197,24 @@ def main(initial_charges=None):
         # Clear the screen
         screen.fill(WHITE)
 
-        # Plot electric field
-        #field.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)
-        
-        potential.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)        
-        
-        fieldlines = []
-        for charge in charges:
-            if isinstance(charge, PointCharge):
-                g = GaussianCircle([charge.x, charge.y], 0.1)
-                for x in g.fluxpoints(field, 12):
-                    fieldlines.append(FieldLine(field.line(x)))
-        fieldlines.append(FieldLine(field.line([10, 0])))        
-        
-        # Plot field lines
-        for fieldline in fieldlines:
-            fieldline.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+        if plot_mode:
+            # Modo Potencial com linhas de campo
+            potential.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+            
+            fieldlines = []
+            for charge in charges:
+                if isinstance(charge, PointCharge):
+                    g = GaussianCircle([charge.x, charge.y], 0.1)
+                    for x in g.fluxpoints(field, 12):
+                        fieldlines.append(FieldLine(field.line(x)))
+            fieldlines.append(FieldLine(field.line([10, 0])))        
+            
+            # Plot field lines
+            for fieldline in fieldlines:
+                fieldline.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+        else:
+            # Modo Campo Elétrico
+            field.plot(screen, SCREEN_WIDTH, SCREEN_HEIGHT)
         
         # Draw charges
         for charge in charges:
@@ -215,6 +229,7 @@ def main(initial_charges=None):
             screen.blit(button_text_line_positive, (button_rect_line_positive.x, button_rect_line_positive.y))  # Positive line charge button
             screen.blit(button_text_line_negative, (button_rect_line_negative.x, button_rect_line_negative.y))  # Negative line charge button
             screen.blit(button_text_remove, (button_rect_remove.x, button_rect_remove.y))  # Remove charges button
+            screen.blit(button_text_plot, (button_rect_plot.x, button_rect_plot.y))
 
             # Highlight the remove button if in remove mode
             if remove_mode:

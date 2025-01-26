@@ -30,7 +30,7 @@ def main():
     button_font = pygame.font.Font(None, 32)
 
     # Title text
-    title_text = title_font.render("Simulação de Campos Elétricos", True, BLACK)
+    title_text = title_font.render("Simulação de Campos Elétricos", True, WHITE)
     title_rect = title_text.get_rect(center=(SCREEN_WIDTH // 2, 50))
 
     # Buttons
