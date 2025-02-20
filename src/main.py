@@ -60,6 +60,7 @@ def initialize_menu_icon():
     menu_icon_rect = pygame.Rect(10, 10, 40, 40)
     return menu_icon_text, menu_icon_rect
 
+
 def handle_mouse_down(event, charges, buttons, menu_icon_rect, sidebar_visible, remove_mode, plot_mode, offset_x, offset_y):
     mouse_x, mouse_y = event.pos
     dragging_charge = None
@@ -69,6 +70,7 @@ def handle_mouse_down(event, charges, buttons, menu_icon_rect, sidebar_visible, 
         sidebar_visible = not sidebar_visible
         remove_mode = False
 
+    
     if sidebar_visible:
         if buttons["positive"]["rect"].collidepoint(mouse_x, mouse_y):
             charges.append(PointCharge(0, 0, 1e-6))
@@ -89,7 +91,33 @@ def handle_mouse_down(event, charges, buttons, menu_icon_rect, sidebar_visible, 
             button_font = pygame.font.Font(None, 24)
             new_text = "Mostrar Campo" if plot_mode else "Mostrar Potencial"
             buttons["plot"]["text"] = button_font.render(new_text, True, BUTTON_TEXT_COLOR)
+            
+    if remove_mode:
+        # Iterate over a copy to avoid issues during removal
+        for charge in charges.copy():
+            if isinstance(charge, PointCharge):
+                charge_screen_x = charge.x + SCREEN_WIDTH // 2
+                charge_screen_y = -charge.y + SCREEN_HEIGHT // 2
+                dx = mouse_x - charge_screen_x
+                dy = mouse_y - charge_screen_y
+                if dx**2 + dy**2 < 25**2:
+                    charges.remove(charge)
+                    return sidebar_visible, remove_mode, plot_mode, None, None, offset_x, offset_y
+                    
+            elif isinstance(charge, LineCharge):
+                start_screen_x = charge.x1[0] + SCREEN_WIDTH // 2
+                start_screen_y = -charge.x1[1] + SCREEN_HEIGHT // 2
+                end_screen_x = charge.x2[0] + SCREEN_WIDTH // 2
+                end_screen_y = -charge.x2[1] + SCREEN_HEIGHT // 2
 
+                start_dist_sq = (mouse_x - start_screen_x)**2 + (mouse_y - start_screen_y)**2
+                end_dist_sq = (mouse_x - end_screen_x)**2 + (mouse_y - end_screen_y)**2
+
+                if start_dist_sq < 25**2 or end_dist_sq < 25**2:
+                    charges.remove(charge)
+                    return sidebar_visible, remove_mode, plot_mode, None, None, offset_x, offset_y
+
+    # Check for charge dragging
     for charge in charges:
         if isinstance(charge, PointCharge):
             charge_screen_x = charge.x + SCREEN_WIDTH // 2
